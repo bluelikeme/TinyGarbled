@@ -40,6 +40,7 @@
 #include <time.h>
 #include "../include/justGarble.h"
 #include "../include/tcpip.h"
+#include "../OTExtension/mains/otmain.h"
 
 int main(int argc, char* argv[])
 {
@@ -51,9 +52,6 @@ int main(int argc, char* argv[])
 	srand_sse(1111);
 #endif
 
-
-	GarbledCircuit garbledCircuit;
-	long i, j, cid;
 
 	if(argc < 3)
 	{
@@ -69,8 +67,70 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
+
+	//----------------------------------------------------------------------------------------------------------------------------------------- OT Extension
+
+	//the number of OTs that are performed. Has to be initialized to a certain minimum size due to
+	int numOTs = 5;
+
+	//bitlength of the values that are transferred - NOTE that when bitlength is not 1 or a multiple of 8, the endianness has to be observed
+	int bitlength = 128;
+
+	//The symmetric security parameter (80, 112, 128)
+	m_nSecParam = 128;
+
+	//Number of threads that will be used in OT extension
+	m_nNumOTThreads = 1;
+
+	//Specifies whether G_OT, C_OT, or R_OT should be used
+	BYTE version;
+
+	crypto *crypt = new crypto(m_nSecParam, (uint8_t*) m_vSeed);
+
+	InitOTSender(connfd, crypt);
+
+	CBitVector delta, X1, X2;
+
+	//The masking function with which the values that are sent in the last communication step are processed
+	m_fMaskFct = new XORMasking(bitlength, delta);
+
+	//creates delta as an array with "numOTs" entries of "bitlength" bit-values and fills delta with random values
+	delta.Create(1, bitlength, crypt);
+
+	//Create X1 and X2 as two arrays with "numOTs" entries of "bitlength" bit-values and resets them to 0
+	X1.Create(numOTs, bitlength);
+	X1.Reset();
+	X2.Create(numOTs, bitlength);
+	X2.Reset();
+
+	for(int i = 0; i < numOTs; i++)
+	{
+		//access and set the i-th element in the bitvectors
+		X1.Set(0x5555, i);
+		X2.Set(0xAAAA, i);
+	}
+
+	version = C_OT;
+	ObliviouslySend(X1, X2, numOTs, bitlength, version, crypt);
+
+	//-----------------------------------------------------------------------------------------------------------------------------------------*** end
+
+
+
+
+
+
+
+
+
+
+	GarbledCircuit garbledCircuit;
+	long i, j, cid;
+
+
+
 	readCircuitFromFile(&garbledCircuit, argv[1]);
-	
+
 
 	printf("garbledCircuit.I[0] = %d\n", garbledCircuit.I[0]);
 
@@ -99,6 +159,11 @@ int main(int argc, char* argv[])
 	}
 	printf("\n\n");
 
+
+
+
+
+
 #ifndef DEBUG
 	block R = randomBlock();
 	*((short *) (&R)) = 1;
@@ -124,6 +189,8 @@ int main(int argc, char* argv[])
 			print__m128i(inputLabels[2*(cid*n+j)+1]);
 		}
 
+
+		//------------------------------------------------------------------------------------------ CHANGE 1
 		for(j = 0 ; j < e; j++)
 		{
 			int ev_input;
@@ -137,10 +204,15 @@ int main(int argc, char* argv[])
 			print__m128i(inputLabels[2*(cid*n+g+j)]);
 			print__m128i(inputLabels[2*(cid*n+g+j) + 1]);
 		}
+		//----------------------------------------------------------------------end
+
+
+
+
 	}
 	printf("\n\n");
 
-	for (j = 0; j < p; j++)
+	for (j = 0; j < p; j++) //p:#DFF
 	{
 		printf("garbledCircuit.I[j] = %d\n", garbledCircuit.I[j]);
 		if(garbledCircuit.I[j] == CONST_ZERO) // constant zero
@@ -173,7 +245,8 @@ int main(int argc, char* argv[])
 			print__m128i(initialDFFLable[2*j+1]);
 
 		}
-		else // belong to Bob
+		//------------------------------------------------------------------------------------------ CHANGE 2
+		else          //**** belongs to Bob
 		{
 			int ev_input;
 			read(connfd, &ev_input, sizeof(int));
@@ -187,6 +260,7 @@ int main(int argc, char* argv[])
 			print__m128i(initialDFFLable[2*j+1]);
 			printf("\n");
 		}
+		//----------------------------------------------------------------------end
 	}
 	printf("\n\n");
 

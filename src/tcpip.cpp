@@ -36,6 +36,9 @@ int server_init(int port)
 	socklen_t clilen;
 	struct sockaddr_in serv_addr, cli_addr;
 	int n;
+
+	printf("open port %d\n", port);
+
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (listenfd < 0)
 	{
@@ -83,6 +86,9 @@ int client_init(char* ip, int port)
 	int sockfd;
 	struct hostent *server;
 	struct sockaddr_in serv_addr;
+
+	printf("connect to %s:%d\n", ip, port);
+
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd < 0)
 	{
