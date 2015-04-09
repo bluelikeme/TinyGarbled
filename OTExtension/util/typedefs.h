@@ -45,8 +45,6 @@ typedef struct SECURITYLEVELS {
 	int ecckcbits;
 } seclvl;
 
-
-
 typedef int BOOL;
 typedef long LONG;
 

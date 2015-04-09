@@ -20,6 +20,8 @@
 
 using namespace std;
 
+
+
 BOOL Init(crypto* crypt);
 BOOL Cleanup();
 BOOL Connect();
@@ -33,14 +35,16 @@ BOOL PrecomputeNaorPinkasReceiver(crypto* crypt);
 BOOL ObliviouslyReceive(CBitVector& choices, CBitVector& ret, int numOTs, int bitlength, BYTE version, crypto* crypt);
 BOOL ObliviouslySend(CBitVector& X1, CBitVector& X2, int numOTs, int bitlength, BYTE version, crypto* crypt);
 
+extern const char* m_nSeed;
 
 extern USHORT		m_nPort;
-extern const char* m_nAddr ;// = "localhost";
+extern const char* m_nAddr;
 
 // Network Communication
 extern CSocket* m_vSockets;
 extern int m_nPID; // thread id
-extern int m_nSecParam; 
+extern int m_nSecParam;
+extern bool m_bUseECC;
 extern int m_nBitLength;
 extern int m_nMod;
 extern MaskingFunction* m_fMaskFct;
@@ -49,14 +53,12 @@ extern MaskingFunction* m_fMaskFct;
 extern BaseOT* bot;
 extern OTExtensionSender *sender;
 extern OTExtensionReceiver *receiver;
-extern CBitVector U; 
+extern CBitVector U;
 extern BYTE *vKeySeeds;
 extern BYTE *vKeySeedMtx;
 
 extern int m_nNumOTThreads;
 
 extern double rndgentime;
-
-
 
 #endif //_MPC_H_

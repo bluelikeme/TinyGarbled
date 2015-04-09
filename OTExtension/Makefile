@@ -12,7 +12,7 @@ OBJECTS_CRYPTO=util/crypto/*.o
 SOURCES_OT=ot/*.cpp
 OBJECTS_OT=ot/*.o
 OBJECTS_MIRACL= util/Miracl/*.o
-CFLAGS=-O3
+CFLAGS=-O0 -g
 INCLUDE=-I..
 
 all: ${OT}

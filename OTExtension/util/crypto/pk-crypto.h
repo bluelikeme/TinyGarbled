@@ -21,7 +21,7 @@ public:
 	pk_crypto(seclvl sp, uint8_t* seed) {
 	}
 	;
-	virtual ~pk_crypto() {
+	~pk_crypto() {
 	}
 	;
 	virtual num* get_num() = 0;
@@ -68,7 +68,7 @@ public:
 	fe() {
 	}
 	;
-	virtual ~fe() {
+	~fe() {
 	}
 	;
 	virtual void set(fe* src) = 0;

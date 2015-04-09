@@ -64,10 +64,10 @@ public:
 	void AttachFrom(CSocket& s) {
 		m_hSock = s.m_hSock;
 	}
+
 	void AttachFrom(int sock) {
 		m_hSock = sock;
 	}
-
 
 	void Detach() {
 		m_hSock = INVALID_SOCKET;

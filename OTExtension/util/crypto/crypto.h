@@ -16,7 +16,6 @@
 
 #include "../typedefs.h"
 #include "../constants.h"
-//#include "gmp-pk-crypto.h"
 #include "ecc-pk-crypto.h"
 #include "../socket.h"
 

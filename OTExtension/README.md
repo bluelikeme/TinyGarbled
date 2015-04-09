@@ -1,8 +1,3 @@
-#############################
-#Modified for TinyGarble
-#by Ebi, Sadegh
-#############################
-
 ###DESCRIPTION
 OT extension implementation of the paper [1]. Implements the general OT (G_OT), correlated OT (C_OT), and random OT (R_OT) as well as the base-OT by Noar-Pinkas with and without random oracle and the base-OT in [1] (Asharov-Lindell). The code is based on the OT extension implementation of [2] and uses the MIRACL libary [3] for elliptic curve arithmetic. 
 

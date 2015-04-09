@@ -62,8 +62,7 @@ pk_crypto* crypto::gen_field(field_type ftype) {
 	//if (ftype == P_FIELD)
 	//	return new prime_field(secparam, pkseed);
 	//else
-	//	return new ecc_field(secparam, pkseed);
-	return new ecc_field(secparam, pkseed);
+		return new ecc_field(secparam, pkseed);
 }
 
 void gen_rnd_bytes(prf_state_ctx* prf_state, uint8_t* resbuf, uint32_t nbytes) {

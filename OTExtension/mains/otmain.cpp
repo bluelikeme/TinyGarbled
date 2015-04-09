@@ -1,15 +1,16 @@
 #include "otmain.h"
 
-//#define OTTiming
 
+const char* m_nSeed = "437398417012387813714564100";
 
-USHORT		m_nPort;
+USHORT		m_nPort = 7766;
 const char* m_nAddr ;// = "localhost";
 
 // Network Communication
 CSocket* m_vSockets;
 int m_nPID; // thread id
 int m_nSecParam;
+bool m_bUseECC;
 int m_nBitLength;
 int m_nMod;
 MaskingFunction* m_fMaskFct;
@@ -27,18 +28,18 @@ int m_nNumOTThreads;
 double rndgentime;
 
 
+#define OTTiming
+
 BOOL Init(crypto* crypt)
 {
 
 
 	m_vSockets = (CSocket*) malloc(sizeof(CSocket) * m_nNumOTThreads);
-	//if(m_bUseECC)
-	//	bot = new NaorPinkas(crypt, ECC_FIELD);
-	//else
-	//	bot = new NaorPinkas(crypt, P_FIELD);
 
-	bot = new NaorPinkas(crypt, ECC_FIELD);
-
+	if(m_bUseECC)
+		bot = new NaorPinkas(crypt, ECC_FIELD);
+	else
+		bot = new NaorPinkas(crypt, P_FIELD);
 	return TRUE;
 }
 
@@ -165,6 +166,8 @@ void InitOTSender(int sock, crypto* crypt)
 #ifdef OTTiming
 	timeval np_begin, np_end;
 #endif
+	//m_nPort = (USHORT) port;
+	//m_nAddr = address;
 	vKeySeeds = (BYTE*) malloc(crypt->get_aes_key_bytes()*crypt->get_seclvl().symbits);
 	
 	//Initialize values
@@ -193,6 +196,8 @@ void InitOTReceiver(int sock, crypto* crypt)
 {
 	int nSndVals = 2;
 	timeval np_begin, np_end;
+	//m_nPort = (USHORT) port;
+	//m_nAddr = address;
 	//vKeySeedMtx = (AES_KEY*) malloc(sizeof(AES_KEY)*NUM_EXECS_NAOR_PINKAS * nSndVals);
 	vKeySeedMtx = (BYTE*) malloc(crypt->get_aes_key_bytes()*crypt->get_seclvl().symbits * nSndVals);
 	//Initialize values
@@ -201,6 +206,7 @@ void InitOTReceiver(int sock, crypto* crypt)
 	//Client connect
 	//Connect();
 	m_vSockets[0].AttachFrom(sock);
+
 	
 #ifdef OTTiming
 	gettimeofday(&np_begin, NULL);
@@ -305,151 +311,150 @@ BOOL ObliviouslyReceive(CBitVector& choices, CBitVector& ret, int numOTs, int bi
 }
 
 
-// int ot_main(int argc, char** argv)
-// {
-// 	const char* addr = "127.0.0.1";
-// 	int port = 7766;
-
-// 	if(argc != 2)
-// 	{
-// 		cout<< "Please call with 0 if acting as server or 1 if acting as client" << endl;
-// 		return 0;
-// 	}
-
-// 	//Determines whether the program is executed in the sender or receiver role
-// 	m_nPID = atoi(argv[1]);
-// 	cout << "Playing as role: " << m_nPID << endl;
-// 	//the number of OTs that are performed. Has to be initialized to a certain minimum size due to
-// 	int numOTs = 1;
-// 	//bitlength of the values that are transferred - NOTE that when bitlength is not 1 or a multiple of 8, the endianness has to be observed
-// 	int bitlength = 128;
-
-// 	//The symmetric security parameter (80, 112, 128)
-// 	m_nSecParam = 128;
-
-// 	//Number of threads that will be used in OT extension
-// 	m_nNumOTThreads = 1;
-
-// 	//Specifies whether G_OT, C_OT, or R_OT should be used
-// 	BYTE version;
-
-// 	crypto *crypt = new crypto(m_nSecParam, (uint8_t*) m_vSeed);
-
-// 	if(m_nPID == SERVER_ID) //Play as OT sender
-// 	{
-// 		InitOTSender(addr, port, crypt);
-
-// 		CBitVector delta, X1, X2;
-
-// 		//The masking function with which the values that are sent in the last communication step are processed
-// 		m_fMaskFct = new XORMasking(bitlength, delta);
-
-// 		//creates delta as an array with "numOTs" entries of "bitlength" bit-values and fills delta with random values
-// 		delta.Create(numOTs, bitlength, crypt);
-// 		//Create X1 and X2 as two arrays with "numOTs" entries of "bitlength" bit-values and resets them to 0
-// 		X1.Create(numOTs, bitlength);
-// 		X1.Reset();
-// 		X2.Create(numOTs, bitlength);
-// 		X2.Reset();
-
-// 		for(int i = 0; i < numOTs; i++)
-// 		{
-// 			//access and set the i-th element in the bitvectors
-// 			X1.Set(i, 0x5555);
-// 			X2.Set(i, 0xAA);
-// 		}
-
-// 		/*
-// 		 * G_OT (general OT) obliviously transfers (X1,X2) and omits delta.
-// 		 * Inputs:
-// 		 * X1,X2: strings that are obliviously transferred in the OT
-// 		 * delta: is unused in G_OT and does not need to be initialized
-// 		 * Outputs: NONE
-// 		*/
-// 		version = G_OT;
-// 		cout << "Sender performing " << numOTs << " G_OT extensions on " << bitlength << " bit elements" << endl;
-// 		ObliviouslySend(X1, X2, numOTs, bitlength, version, crypt);
-
-
-// 		 * C_OT (correlated OT) generates X1 at random, obliviously transfers (X1,X1 XOR delta), and outputs X1, X2.
-// 		 * Inputs:
-// 		 * delta: string that stores the correlation of the values in C_OT
-// 		 * Outputs:
-// 		 * X1: is filled with random values. Needs to be a CBitVector of size bitlength*numOTs
-// 		 * X2: is filled with X1 XOR delta. Needs to be a CBitVector of size bitlength*numOTs
-// 		 *
-// 		 * Note that the correlation (XOR in the example) can be changed in fMaskFct by implementing a different routine.
-
-
-// 		version = C_OT;
-// 		cout << "Sender performing " << numOTs << " C_OT extensions on " << bitlength << " bit elements" << endl;
-// 		ObliviouslySend(X1, X2, numOTs, bitlength, version, crypt);
-
-// 		/*
-// 		 * R_OT (random OT) generates X1 and X2 at random, obliviously transfers (X1,X2), and outputs X1, X2.
-// 		 * Inputs:
-// 		 * delta:  is unused in R_OT and does not need to be initialized
-// 		 * Outputs:
-// 		 * X1: is filled with random values. Needs to be a CBitVector of size bitlength*numOTs
-// 		 * X2: is filled with random values. Needs to be a CBitVector of size bitlength*numOTs
-// 		*/
-
-// 		version = R_OT;
-// 		cout << "Sender performing " << numOTs << " R_OT extensions on " << bitlength << " bit elements" << endl;
-// 		ObliviouslySend(X1, X2, numOTs, bitlength, version, crypt);
-
-// 		/*cout << "X1: "<< endl;
-// 		X1.PrintHex();
-// 		cout << "X2: " << endl;
-// 		X2.PrintHex();
-// 		if(version == C_OT)
-// 		{
-// 			cout << "Delta: "<< endl;
-// 			delta.PrintHex();
-// 		}*/
-// 	}
-// 	else //Play as OT receiver
-// 	{
-// 		InitOTReceiver(addr, port, crypt);
-
-// 		CBitVector choices, response;
-
-// 		//The masking function with which the values that are sent in the last communication step are processed
-// 		m_fMaskFct = new XORMasking(bitlength);
-
-// 		//Create the bitvector choices as a bitvector with numOTs entries
-// 		choices.Create(numOTs, crypt);
-
-// 		//Pre-generate the respose vector for the results
-// 		response.Create(numOTs, bitlength);
-
-// 		/*
-// 		 * The inputs of the receiver in G_OT, C_OT and R_OT are the same. The only difference is the version
-// 		 * variable that has to match the version of the sender.
-// 		*/
-		
-// 		version = G_OT;
-// 		cout << "Receiver performing " << numOTs << " G_OT extensions on " << bitlength << " bit elements" << endl;
-// 		ObliviouslyReceive(choices, response, numOTs, bitlength, version, crypt);
-		
-
-// 		version = C_OT;
-// 		cout << "Receiver performing " << numOTs << " C_OT extensions on " << bitlength << " bit elements" << endl;
-// 		ObliviouslyReceive(choices, response, numOTs, bitlength, version, crypt);
-
-// 		version = R_OT;
-// 		cout << "Receiver performing " << numOTs << " R_OT extensions on " << bitlength << " bit elements" << endl;
-// 		ObliviouslyReceive(choices, response, numOTs, bitlength, version, crypt);
-
-
-// 		//cout << "Choices: " << endl;
-// 		//choices.Print(0, numOTs);
-// 		//cout << "Response: " << endl;
-// 		//response.PrintHex();
-
-// 	}
-// 	delete crypt;
-// 	Cleanup();
-
-// 	return 1;
-// }
+//int main(int argc, char** argv)
+//{
+//	const char* addr = "127.0.0.1";
+//	int port = 7766;
+//
+//	if(argc != 2)
+//	{
+//		cout<< "Please call with 0 if acting as server or 1 if acting as client" << endl;
+//		return 0;
+//	}
+//
+//	//Determines whether the program is executed in the sender or receiver role
+//	m_nPID = atoi(argv[1]);
+//	cout << "Playing as role: " << m_nPID << endl;
+//	//the number of OTs that are performed. Has to be initialized to a certain minimum size due to
+//	int numOTs = 1000000;
+//	//bitlength of the values that are transferred - NOTE that when bitlength is not 1 or a multiple of 8, the endianness has to be observed
+//	int bitlength = 80;
+//
+//	//Use elliptic curve cryptography in the base-OTs
+//	m_bUseECC = true;
+//	//The symmetric security parameter (80, 112, 128)
+//	m_nSecParam = 128;
+//
+//	//Number of threads that will be used in OT extension
+//	m_nNumOTThreads = 1;
+//
+//	//Specifies whether G_OT, C_OT, or R_OT should be used
+//	BYTE version;
+//
+//	crypto *crypt = new crypto(m_nSecParam, (uint8_t*) m_vSeed);
+//
+//	if(m_nPID == SERVER_ID) //Play as OT sender
+//	{
+//		InitOTSender(addr, port, crypt);
+//
+//		CBitVector delta, X1, X2;
+//
+//		//The masking function with which the values that are sent in the last communication step are processed
+//		m_fMaskFct = new XORMasking(bitlength, delta);
+//
+//		//creates delta as an array with "numOTs" entries of "bitlength" bit-values and fills delta with random values
+//		delta.Create(numOTs, bitlength, crypt);
+//		//Create X1 and X2 as two arrays with "numOTs" entries of "bitlength" bit-values and resets them to 0
+//		X1.Create(numOTs, bitlength);
+//		X1.Reset();
+//		X2.Create(numOTs, bitlength);
+//		X2.Reset();
+//
+//		for(int i = 0; i < numOTs; i++)
+//		{
+//			//access and set the i-th element in the bitvectors
+//			X1.Set(i, 0x55);
+//			X2.Set(i, 0xAA);
+//		}
+//
+//		/*
+//		 * G_OT (general OT) obliviously transfers (X1,X2) and omits delta.
+//		 * Inputs:
+//		 * X1,X2: strings that are obliviously transferred in the OT
+//		 * delta: is unused in G_OT and does not need to be initialized
+//		 * Outputs: NONE
+//		*/
+//		version = G_OT;
+//		cout << "Sender performing " << numOTs << " G_OT extensions on " << bitlength << " bit elements" << endl;
+//		ObliviouslySend(X1, X2, numOTs, bitlength, version, crypt);
+//
+//		/*
+//		 * C_OT (correlated OT) generates X1 at random, obliviously transfers (X1,X1 XOR delta), and outputs X1, X2.
+//		 * Inputs:
+//		 * delta: string that stores the correlation of the values in C_OT
+//		 * Outputs:
+//		 * X1: is filled with random values. Needs to be a CBitVector of size bitlength*numOTs
+//		 * X2: is filled with X1 XOR delta. Needs to be a CBitVector of size bitlength*numOTs
+//		 *
+//		 * Note that the correlation (XOR in the example) can be changed in fMaskFct by implementing a different routine.
+//		*/
+//		version = C_OT;
+//		cout << "Sender performing " << numOTs << " C_OT extensions on " << bitlength << " bit elements" << endl;
+//		ObliviouslySend(X1, X2, numOTs, bitlength, version, crypt);
+//
+//
+//		/*
+//		 * R_OT (random OT) generates X1 and X2 at random, obliviously transfers (X1,X2), and outputs X1, X2.
+//		 * Inputs:
+//		 * delta:  is unused in R_OT and does not need to be initialized
+//		 * Outputs:
+//		 * X1: is filled with random values. Needs to be a CBitVector of size bitlength*numOTs
+//		 * X2: is filled with random values. Needs to be a CBitVector of size bitlength*numOTs
+//		*/
+//		version = R_OT;
+//		cout << "Sender performing " << numOTs << " R_OT extensions on " << bitlength << " bit elements" << endl;
+//		ObliviouslySend(X1, X2, numOTs, bitlength, version, crypt);
+//
+//		/*cout << "X1: "<< endl;
+//		X1.PrintHex();
+//		cout << "X2: " << endl;
+//		X2.PrintHex();
+//		if(version == C_OT)
+//		{
+//			cout << "Delta: "<< endl;
+//			delta.PrintHex();
+//		}*/
+//	}
+//	else //Play as OT receiver
+//	{
+//		InitOTReceiver(addr, port, crypt);
+//
+//		CBitVector choices, response;
+//
+//		//The masking function with which the values that are sent in the last communication step are processed
+//		m_fMaskFct = new XORMasking(bitlength);
+//
+//		//Create the bitvector choices as a bitvector with numOTs entries
+//		choices.Create(numOTs, crypt);
+//
+//		//Pre-generate the respose vector for the results
+//		response.Create(numOTs, bitlength);
+//
+//		/*
+//		 * The inputs of the receiver in G_OT, C_OT and R_OT are the same. The only difference is the version
+//		 * variable that has to match the version of the sender.
+//		*/
+//
+//		version = G_OT;
+//		cout << "Receiver performing " << numOTs << " G_OT extensions on " << bitlength << " bit elements" << endl;
+//		ObliviouslyReceive(choices, response, numOTs, bitlength, version, crypt);
+//
+//		version = C_OT;
+//		cout << "Receiver performing " << numOTs << " C_OT extensions on " << bitlength << " bit elements" << endl;
+//		ObliviouslyReceive(choices, response, numOTs, bitlength, version, crypt);
+//
+//		version = R_OT;
+//		cout << "Receiver performing " << numOTs << " R_OT extensions on " << bitlength << " bit elements" << endl;
+//		ObliviouslyReceive(choices, response, numOTs, bitlength, version, crypt);
+//
+//
+//		/*cout << "Choices: " << endl;
+//		choices.Print(0, numOTs);
+//		cout << "Response: " << endl;
+//		response.PrintHex();*/
+//	}
+//	delete crypt;
+//	Cleanup();
+//
+//	return 1;
+//}

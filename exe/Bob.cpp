@@ -65,12 +65,16 @@ int main(int argc, char* argv[]) {
 	}
 
 
-	//----------------------------------------------------------------------------------------------------------------------------------------- OT Extension
+	//Determines whether the program is executed in the sender or receiver role
+	m_nPID = 1;
+
 	//the number of OTs that are performed. Has to be initialized to a certain minimum size due to
-	int numOTs = 1;
+	int numOTs = 1000;
 	//bitlength of the values that are transferred - NOTE that when bitlength is not 1 or a multiple of 8, the endianness has to be observed
 	int bitlength = 128;
 
+	//Use elliptic curve cryptography in the base-OTs
+	//m_bUseECC = true;
 	//The symmetric security parameter (80, 112, 128)
 	m_nSecParam = 128;
 
@@ -81,8 +85,6 @@ int main(int argc, char* argv[]) {
 	BYTE version;
 
 	crypto *crypt = new crypto(m_nSecParam, (uint8_t*) m_vSeed);
-
-
 	InitOTReceiver(sockfd, crypt);
 
 	CBitVector choices, response;
@@ -96,22 +98,21 @@ int main(int argc, char* argv[]) {
 	//Pre-generate the respose vector for the results
 	response.Create(numOTs, bitlength);
 
+	/*
+	 * The inputs of the receiver in G_OT, C_OT and R_OT are the same. The only difference is the version
+	 * variable that has to match the version of the sender.
+	 */
 
 	version = C_OT;
+	cout << "Receiver performing " << numOTs << " C_OT extensions on "
+			<< bitlength << " bit elements" << endl;
 	ObliviouslyReceive(choices, response, numOTs, bitlength, version, crypt);
 
-
-	//-----------------------------------------------------------------------------------------------------------------------------------------*** end
-
-
+	delete crypt;
 
 
 	GarbledCircuit garbledCircuit;
 	long i, j, cid;
-
-
-
-
 
 	readCircuitFromFile(&garbledCircuit, argv[1]);
 
@@ -134,10 +135,7 @@ int main(int argc, char* argv[]) {
 	for (cid = 0; cid < c; cid++) {   //For each Clock Cycle
 		for (j = 0; j < e; j++) {      //For each input bit
 
-
 			evaluator_inputs[cid * e + j] = rand() % 2; //generate one random bit as evaluator's input bit
-
-
 
 			printf("%d ", evaluator_inputs[cid * e + j]);
 		}
@@ -152,29 +150,18 @@ int main(int argc, char* argv[]) {
 			print__m128i(inputLabels[n * cid + j]);
 		}
 
-
-
-
 		//for each clock cycle
 		//-------------------------------------------------------------------------------------- CHANGE 1
 		for (j = 0; j < e; j++) {
 
-
 			write(sockfd, &evaluator_inputs[cid * e + j], sizeof(int));
 			recv_block(sockfd, &inputLabels[cid * n + g + j]);
 
-
-
-
-			printf("i(%ld,%ld,%d)\n", cid, j + g, evaluator_inputs[cid * e + j]);
+			printf("i(%ld,%ld,%d)\n", cid, j + g,
+					evaluator_inputs[cid * e + j]);
 			print__m128i(inputLabels[cid * n + g + j]);
 		}
 		//--------------------------------------------------------------------------------------
-
-
-
-
-
 
 	}
 	printf("\n\n");
@@ -197,33 +184,12 @@ int main(int argc, char* argv[]) {
 					(garbledCircuit.I[j] - g > 0)
 							&& (garbledCircuit.I[j] - g < e));
 
-
-
-
-
-
-
-
-
-
 			//------------------------------------------------------------------------ CHANGE 2
 			write(sockfd, &evaluator_inputs[garbledCircuit.I[j] - g],
 					sizeof(int));
 			recv_block(sockfd, &initialDFFLable[j]);
 
-
-
-
-
 			//------------------------------------------------------------------------
-
-
-
-
-
-
-
-
 
 			printf("dffi(%ld,%ld,%d)\n", cid, j + g,
 					evaluator_inputs[garbledCircuit.I[j] - g]);
