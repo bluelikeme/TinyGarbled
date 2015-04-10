@@ -44,6 +44,13 @@
 #include "../OTExtension/mains/otmain.h"
 
 int main(int argc, char* argv[]) {
+
+	//Parameters
+	int numOTs = 1;
+	int bitlength = 128;
+	m_nSecParam = 128;
+	//-------------------------
+
 #ifndef DEBUG
 	srand(time(NULL));
 	srand_sse(time(NULL));
@@ -64,53 +71,90 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 
-
-	//Determines whether the program is executed in the sender or receiver role
-	m_nPID = 1;
-
-	//the number of OTs that are performed. Has to be initialized to a certain minimum size due to
-	int numOTs = 1000;
-	//bitlength of the values that are transferred - NOTE that when bitlength is not 1 or a multiple of 8, the endianness has to be observed
-	int bitlength = 128;
-
-	//Use elliptic curve cryptography in the base-OTs
-	//m_bUseECC = true;
-	//The symmetric security parameter (80, 112, 128)
-	m_nSecParam = 128;
-
-	//Number of threads that will be used in OT extension
 	m_nNumOTThreads = 1;
-
-	//Specifies whether G_OT, C_OT, or R_OT should be used
 	BYTE version;
-
 	crypto *crypt = new crypto(m_nSecParam, (uint8_t*) m_vSeed);
 	InitOTReceiver(sockfd, crypt);
-
 	CBitVector choices, response;
-
-	//The masking function with which the values that are sent in the last communication step are processed
 	m_fMaskFct = new XORMasking(bitlength);
-
-	//Create the bitvector choices as a bitvector with numOTs entries
-	choices.Create(numOTs, crypt);
-
-	//Pre-generate the respose vector for the results
+	choices.Create(numOTs, 1);
 	response.Create(numOTs, bitlength);
 
-	/*
-	 * The inputs of the receiver in G_OT, C_OT and R_OT are the same. The only difference is the version
-	 * variable that has to match the version of the sender.
-	 */
+	choices.Set(0,0x1);
 
-	version = C_OT;
+
 	cout << "Receiver performing " << numOTs << " C_OT extensions on "
 			<< bitlength << " bit elements" << endl;
+	BYTE* b = new BYTE[16];
+	printf("b:    ");
+	for (int i = 0; i < 16; i++) {
+		b[i] = i;
+		printf("%02x", b[i]);
+	}
+	printf("\n");
+	BYTE* b2 = new BYTE[16];
+	printf("b2:   ");
+	for (int i = 0; i < 16; i++) {
+		b2[i] = 3 - i;
+		printf("%02x", b2[i]);
+	}
+	printf("\n");
+
+	CBitVector X1, X2;
+	X1.Create(1, 128);
+	X2.Create(1, 128);
+
+	for (int i = 0; i < numOTs; i++) {
+		//access and set the i-th element in the bitvectors
+		X1.SetBytes(b, 0, 16);
+		X2.SetBytes(b2, 0, 16);
+	}
+
+
+	version = C_OT;
 	ObliviouslyReceive(choices, response, numOTs, bitlength, version, crypt);
 
+
+
+
+	if (response.IsEqual(X1))
+		printf("CORRECT\n");
+	else
+		printf("WRONG ***\n");
 	delete crypt;
 
 
+
+	printf("Printing response:\t");
+
+	for (int i = 0; i < 16; i++) {
+		b[i] = response.GetByte(i);
+		printf("%02x", b[i]);
+	}
+	printf("\n");
+
+	printf("Printing X1:\t");
+	for (int i = 0; i < 16; i++) {
+		b[i] = X1.GetByte(i);
+		printf("%02x", b[i]);
+	}
+	printf("\n");
+
+	printf("Printing X2:\t");
+	for (int i = 0; i < 16; i++) {
+		b[i] = X2.GetByte(i);
+		printf("%02x", b[i]);
+	}
+	printf("\n");
+
+//#define GARBLING
+
+#ifndef GARBLING
+	client_close(sockfd);
+	return 0;
+
+#else
+	//--------------------------------------- Garbling
 	GarbledCircuit garbledCircuit;
 	long i, j, cid;
 
@@ -135,7 +179,7 @@ int main(int argc, char* argv[]) {
 	for (cid = 0; cid < c; cid++) {   //For each Clock Cycle
 		for (j = 0; j < e; j++) {      //For each input bit
 
-			evaluator_inputs[cid * e + j] = rand() % 2; //generate one random bit as evaluator's input bit
+			evaluator_inputs[cid * e + j] = rand() % 2;//generate one random bit as evaluator's input bit
 
 			printf("%d ", evaluator_inputs[cid * e + j]);
 		}
@@ -170,19 +214,19 @@ int main(int argc, char* argv[]) {
 		printf("garbledCircuit.I[j] = %d\n", garbledCircuit.I[j]);
 
 		if (garbledCircuit.I[j] < g) // initial value is constant or belongs to Alice (garbler)
-				{
+		{
 			recv_block(sockfd, &initialDFFLable[j]);
 			if (garbledCircuit.I[j] == CONST_ZERO)
-				printf("dffi(%ld,%ld,0)\n", cid, j);
+			printf("dffi(%ld,%ld,0)\n", cid, j);
 			else if (garbledCircuit.I[j] == CONST_ONE)
-				printf("dffi(%ld,%ld,1)\n", cid, j);
+			printf("dffi(%ld,%ld,1)\n", cid, j);
 			else
-				printf("dffi(%ld,%ld,?)\n", cid, j);
+			printf("dffi(%ld,%ld,?)\n", cid, j);
 			print__m128i(initialDFFLable[j]);
 		} else {
 			assert(
 					(garbledCircuit.I[j] - g > 0)
-							&& (garbledCircuit.I[j] - g < e));
+					&& (garbledCircuit.I[j] - g < e));
 
 			//------------------------------------------------------------------------ CHANGE 2
 			write(sockfd, &evaluator_inputs[garbledCircuit.I[j] - g],
@@ -220,5 +264,7 @@ int main(int argc, char* argv[]) {
 	removeGarbledCircuit(&garbledCircuit);
 
 	return 0;
+#endif
+
 }
 

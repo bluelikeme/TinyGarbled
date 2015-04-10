@@ -43,6 +43,13 @@
 #include "../OTExtension/mains/otmain.h"
 
 int main(int argc, char* argv[]) {
+
+	//Parameters
+	int numOTs = 1;
+	int bitlength = 128;
+	m_nSecParam = 128;
+	//----------------------
+
 #ifndef DEBUG
 	srand( time(NULL));
 	srand_sse( time(NULL));
@@ -63,69 +70,96 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 
-	//Determines whether the program is executed in the sender or receiver role
-	m_nPID = 0;
-
-	//the number of OTs that are performed. Has to be initialized to a certain minimum size due to
-	int numOTs = 1000;
-	//bitlength of the values that are transferred - NOTE that when bitlength is not 1 or a multiple of 8, the endianness has to be observed
-	int bitlength = 128;
-
-	//Use elliptic curve cryptography in the base-OTs
-	//m_bUseECC = true;
-	//The symmetric security parameter (80, 112, 128)
-	m_nSecParam = 128;
-
-	//Number of threads that will be used in OT extension
+	///--------------------------------------------------------------- OT E
 	m_nNumOTThreads = 1;
-
-	//Specifies whether G_OT, C_OT, or R_OT should be used
 	BYTE version;
-
 	crypto *crypt = new crypto(m_nSecParam, (uint8_t*) m_vSeed);
-
-
 	InitOTSender(connfd, crypt);
-
-
 	CBitVector delta, X1, X2;
-
-	//The masking function with which the values that are sent in the last communication step are processed
 	m_fMaskFct = new XORMasking(bitlength, delta);
-
-	//creates delta as an array with "numOTs" entries of "bitlength" bit-values and fills delta with random values
 	delta.Create(numOTs, bitlength, crypt);
-	//Create X1 and X2 as two arrays with "numOTs" entries of "bitlength" bit-values and resets them to 0
+
+
 	X1.Create(numOTs, bitlength);
 	X1.Reset();
 	X2.Create(numOTs, bitlength);
 	X2.Reset();
 
+	BYTE* b = new BYTE[16];
+	printf("b:    ");
+	for (int i = 0; i < 16; i++) {
+		b[i] = i;
+		printf("%02x", b[i]);
+	}
+	printf("\n");
+
+	BYTE* b2 = new BYTE[16];
+	printf("b2:   ");
+	for (int i = 0; i < 16; i++) {
+		b2[i] = 3 - i;
+		printf("%02x", b2[i]);
+	}
+	printf("\n");
+
 	for (int i = 0; i < numOTs; i++) {
 		//access and set the i-th element in the bitvectors
-		X1.Set(i, 0x55);
-		X2.Set(i, 0xAA);
+		X1.SetBytes(b, 0, 16);
+		X2.SetBytes(b2, 0, 16);
 	}
 
-	/*
-	 * C_OT (correlated OT) generates X1 at random, obliviously transfers (X1,X1 XOR delta), and outputs X1, X2.
-	 * Inputs:
-	 * delta: string that stores the correlation of the values in C_OT
-	 * Outputs:
-	 * X1: is filled with random values. Needs to be a CBitVector of size bitlength*numOTs
-	 * X2: is filled with X1 XOR delta. Needs to be a CBitVector of size bitlength*numOTs
-	 *
-	 * Note that the correlation (XOR in the example) can be changed in fMaskFct by implementing a different routine.
-	 */
-	version = C_OT;
+	printf("Printing X1:\t");
+	for (int i = 0; i < 16; i++) {
+		b[i] = X1.GetByte(i);
+		printf("%02x", b[i]);
+	}
+	printf("\n");
+
+	printf("Printing X2:\t");
+	for (int i = 0; i < 16; i++) {
+		b[i] = X2.GetByte(i);
+		printf("%02x", b[i]);
+	}
+	printf("\n");
+
 	cout << "Sender performing " << numOTs << " C_OT extensions on "
 			<< bitlength << " bit elements" << endl;
+
+	version = C_OT;
 	ObliviouslySend(X1, X2, numOTs, bitlength, version, crypt);
+
+	printf("Printing X1:\t");
+	for (int i = 0; i < 16; i++) {
+		b[i] = X1.GetByte(i);
+		printf("%02x", b[i]);
+	}
+	printf("\n");
+
+	printf("Printing X2:\t");
+	for (int i = 0; i < 16; i++) {
+		b[i] = X2.GetByte(i);
+		printf("%02x", b[i]);
+	}
+	printf("\n");
+
+	printf("Printing delta:\t");
+	for (int i = 0; i < 16; i++) {
+		b[i] = delta.GetByte(i);
+		printf("%02x", b[i]);
+	}
+	printf("\n");
+
 
 
 	delete crypt;
 
+//#define GARBLING
 
+#ifndef GARBLING
+	server_close(connfd);
+	return 0;
+
+#else
+	//----------------------------------------- Garbling
 	GarbledCircuit garbledCircuit;
 	long i, j, cid;
 
@@ -167,9 +201,9 @@ int main(int argc, char* argv[]) {
 	for (cid = 0; cid < c; cid++) {
 		for (j = 0; j < g; j++) {
 			if (garbler_inputs[cid * g + j] == 0)
-				send_block(connfd, inputLabels[2 * (cid * n + j)]);
+			send_block(connfd, inputLabels[2 * (cid * n + j)]);
 			else
-				send_block(connfd, inputLabels[2 * (cid * n + j) + 1]);
+			send_block(connfd, inputLabels[2 * (cid * n + j) + 1]);
 
 			printf("i(%ld, %ld, %d)\n", cid, j, garbler_inputs[cid * g + j]);
 			print__m128i(inputLabels[2 * (cid * n + j)]);
@@ -181,9 +215,9 @@ int main(int argc, char* argv[]) {
 			int ev_input;
 			read(connfd, &ev_input, sizeof(int));
 			if (!ev_input)
-				send_block(connfd, inputLabels[2 * (cid * n + g + j)]);
+			send_block(connfd, inputLabels[2 * (cid * n + g + j)]);
 			else
-				send_block(connfd, inputLabels[2 * (cid * n + g + j) + 1]);
+			send_block(connfd, inputLabels[2 * (cid * n + g + j) + 1]);
 
 			printf("i(%ld, %ld, %d)\n", cid, j, ev_input);
 			print__m128i(inputLabels[2 * (cid * n + g + j)]);
@@ -195,7 +229,7 @@ int main(int argc, char* argv[]) {
 	printf("\n\n");
 
 	for (j = 0; j < p; j++) //p:#DFF
-			{
+	{
 		printf("garbledCircuit.I[j] = %d\n", garbledCircuit.I[j]);
 		if (garbledCircuit.I[j] == CONST_ZERO) // constant zero
 		{
@@ -212,13 +246,13 @@ int main(int argc, char* argv[]) {
 			print__m128i(inputLabels[2 * j + 1]);
 
 		} else if (garbledCircuit.I[j] < g) //belongs to Alice (garbler)
-				{
+		{
 			int index = garbledCircuit.I[j];
 
 			if (garbler_inputs[index] == 0)
-				send_block(connfd, initialDFFLable[2 * j]);
+			send_block(connfd, initialDFFLable[2 * j]);
 			else
-				send_block(connfd, initialDFFLable[2 * j + 1]);
+			send_block(connfd, initialDFFLable[2 * j + 1]);
 
 			printf("dffi(%ld, %ld, %d)\n", cid, j, garbler_inputs[index]);
 			print__m128i(initialDFFLable[2 * j]);
@@ -226,14 +260,14 @@ int main(int argc, char* argv[]) {
 
 		}
 		//------------------------------------------------------------------------------------------ CHANGE 2
-		else          //**** belongs to Bob
+		else//**** belongs to Bob
 		{
 			int ev_input;
 			read(connfd, &ev_input, sizeof(int));
 			if (!ev_input)
-				send_block(connfd, initialDFFLable[2 * j]);
+			send_block(connfd, initialDFFLable[2 * j]);
 			else
-				send_block(connfd, initialDFFLable[2 * j + 1]);
+			send_block(connfd, initialDFFLable[2 * j + 1]);
 
 			printf("dffi(%ld, %ld, %d)\n", cid, j, ev_input);
 			print__m128i(initialDFFLable[2 * j]);
@@ -261,5 +295,6 @@ int main(int argc, char* argv[]) {
 	removeGarbledCircuit(&garbledCircuit);
 
 	return 0;
+#endif
 }
 
