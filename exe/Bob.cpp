@@ -111,7 +111,7 @@ int main(int argc, char* argv[]) {
 	printf("\n");
 	//--------------------------------------- OT Extension
 	//Parameters
-	int numOTs = c*e;
+	int numOTs = c * e;
 	int bitlength = 128;
 	m_nSecParam = 128;
 	m_nNumOTThreads = 1;
@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
 
 		if (i % 8 == 7 || i == e * c - 1) { //put Byte into choices
 			if (i == e * c - 1) {
-				temp = temp >> 7 - (i % 8) -1;
+				temp = temp >> 7 - (i % 8) - 1;
 			}
 			choices.SetByte(floor(i / 8), temp);
 			temp = 0x00;
@@ -175,11 +175,10 @@ int main(int argc, char* argv[]) {
 	for (cid = 0; cid < c; cid++) {
 		for (j = 0; j < e; j++) {
 			inputLabelsptr = (uint8_t*) &inputLabels[cid * n + g + j];
-			response.GetBytes(inputLabelsptr, 16*(cid * e + j), 16);
+			response.GetBytes(inputLabelsptr, 16 * (cid * e + j), 16);
 		}
 	}
 
-	delete crypt;
 	//---------------------------------------end of OT Extension
 
 	printf("\n\n");
@@ -226,9 +225,9 @@ int main(int argc, char* argv[]) {
 							&& (garbledCircuit.I[j] - g < e));
 
 			//------------------------------------------------------------------------ CHANGE 2
-			write(sockfd, &evaluator_inputs[garbledCircuit.I[j] - g],
-					sizeof(int));
-			recv_block(sockfd, &initialDFFLable[j]);
+//			write(sockfd, &evaluator_inputs[garbledCircuit.I[j] - g],
+//					sizeof(int));
+//			recv_block(sockfd, &initialDFFLable[j]);
 
 			//------------------------------------------------------------------------
 
@@ -239,6 +238,68 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	printf("\n\n");
+
+	//--------------------------------------- OT Extension
+	//Parameters
+	numOTs = p;
+	choices.Create(numOTs, 8);
+	response.Create(numOTs, bitlength);
+
+	cout << "Receiver performing " << numOTs << " C_OT extensions on "
+			<< bitlength << " bit elements" << endl;
+
+	//making choices
+	temp = 0x00;
+	for (int i = 0; i < p; i++) { //sweeping on each input of evaluator_inputs
+
+		if (evaluator_inputs[garbledCircuit.I[j] - g]) { // 0 or 1
+			temp = temp | 0x80;
+		} else {
+			temp = temp & 0x7f;
+
+		}
+		temp = temp >> 1;
+
+		if (i % 8 == 7 || i == p - 1) { //put Byte into choices
+			if (i == e * c - 1) {
+				temp = temp >> 7 - (i % 8) - 1;
+			}
+			choices.SetByte(floor(i / 8), temp);
+			temp = 0x00;
+		}
+
+	}
+	//------end of making choices
+
+	//do OT Ex
+	version = C_OT;
+	ObliviouslyReceive(choices, response, numOTs, bitlength, version, crypt);
+
+	//print ot result
+	printf("Choices:     \n");
+	for (int i = 0; i < 16; i++) {
+		printf("%02x", choices.GetByte(i));
+	}
+	printf("\n\n");
+	printf("Size: %d\n", choices.GetSize());
+	printf("Printing response:\n");
+	for (int j = 0; j < numOTs; j++) {
+		for (int i = 0; i < 16; i++) {
+			printf("%02x", response.GetByte(i + 16 * j));
+		}
+		printf("\n");
+	}
+	printf("\n\n");
+
+	//putting evaluator's input labels into "inputLabels"
+
+	for (j = 0; j < p; j++) {
+		inputLabelsptr = (uint8_t*) &initialDFFLable[j];
+		response.GetBytes(inputLabelsptr, 16 * j, 16);
+	}
+
+	delete crypt;
+	//---------------------------------------end of OT Extension
 
 	recv_block(sockfd, &(garbledCircuit.globalKey)); //receive key
 

@@ -163,7 +163,7 @@ int main(int argc, char* argv[]) {
 
 	//putting X1 & X2 into inputLabels
 	printf("printing inputLabels after copy from X1 and X2:\n\n");
-	uint8_t *inputLabelsptr;
+	uint8_t* inputLabelsptr;
 	for (cid = 0; cid < c; cid++) {
 		for (j = 0; j < e; j++) {
 			inputLabelsptr = (uint8_t*) &inputLabels[2 * (cid * n + g + j)];
@@ -203,7 +203,6 @@ int main(int argc, char* argv[]) {
 	}
 	printf("\n");
 
-	delete crypt;
 //----------------------------------------------------end of OT Extension
 
 	for (cid = 0; cid < c; cid++) {
@@ -275,14 +274,14 @@ int main(int argc, char* argv[]) {
 		//------------------------------------------------------------------------------------------ CHANGE 2
 		else //**** belongs to Bob
 		{
-			int ev_input;
-			read(connfd, &ev_input, sizeof(int));
-			if (!ev_input)
-				send_block(connfd, initialDFFLable[2 * j]);
-			else
-				send_block(connfd, initialDFFLable[2 * j + 1]);
+//			int ev_input;
+//			read(connfd, &ev_input, sizeof(int));
+//			if (!ev_input)
+//				send_block(connfd, initialDFFLable[2 * j]);
+//			else
+//				send_block(connfd, initialDFFLable[2 * j + 1]);
 
-			printf("dffi(%ld, %ld, %d)\n", cid, j, ev_input);
+//			printf("dffi(%ld, %ld, %d)\n", cid, j, ev_input);
 			print__m128i(initialDFFLable[2 * j]);
 			print__m128i(initialDFFLable[2 * j + 1]);
 			printf("\n");
@@ -290,6 +289,58 @@ int main(int argc, char* argv[]) {
 		//----------------------------------------------------------------------end
 	}
 	printf("\n\n");
+
+	///--------------------------------------------------------------- OT Extension
+		//Parameters
+		numOTs = p;
+		delta.Create(numOTs, bitlength, crypt);
+		m_fMaskFct = new XORMasking(bitlength, delta);
+		for (int i=0;i<numOTs;i++)
+			delta.SetBytes(rptr, i*16, 16);
+
+		printf("Delta: ");
+		for (int i = 0; i < 16; i++) {
+			printf("%02x", delta.GetByte(i));
+		}
+		printf("\n");
+
+		printf("R: ");
+		print__m128i(R);
+		printf("\n");
+
+
+
+		X1.Create(numOTs, bitlength);
+		X1.Reset();
+		X2.Create(numOTs, bitlength);
+		X2.Reset();
+
+
+		cout << "Sender performing " << numOTs << " C_OT extensions on "
+				<< bitlength << " bit elements" << endl;
+
+		version = C_OT;
+		ObliviouslySend(X1, X2, numOTs, bitlength, version, crypt);
+
+
+
+		//putting X1 & X2 into inputLabels
+		printf("printing inputLabels after copy from X1 and X2:\n\n");
+
+
+			for (j = 0; j < p; j++) {
+				inputLabelsptr = (uint8_t*) &initialDFFLable[2 * j];
+				X1.GetBytes(inputLabelsptr, 16*(j), 16);
+
+
+				inputLabelsptr = (uint8_t*) &initialDFFLable[2 * j +1];
+				X2.GetBytes(inputLabelsptr, 16*( j), 16);
+			}
+
+		delete crypt;
+	//----------------------------------------------------end of OT Extension
+
+
 
 	garbledCircuit.globalKey = randomBlock();
 	send_block(connfd, garbledCircuit.globalKey); // send DKC key
