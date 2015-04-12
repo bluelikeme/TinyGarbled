@@ -44,15 +44,11 @@
 
 int main(int argc, char* argv[]) {
 
-	//Parameters
-	int numOTs = 1;
-	int bitlength = 128;
-	m_nSecParam = 128;
 	//----------------------
 
 #ifndef DEBUG
-	srand( time(NULL));
-	srand_sse( time(NULL));
+	srand(time(NULL));
+	srand_sse(time(NULL));
 #else
 	srand(1);
 	srand_sse(1111);
@@ -70,89 +66,7 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 
-	///--------------------------------------------------------------- OT E
-	m_nNumOTThreads = 1;
-	BYTE version;
-	crypto *crypt = new crypto(m_nSecParam, (uint8_t*) m_vSeed);
-	InitOTSender(connfd, crypt);
-	CBitVector delta, X1, X2;
-	m_fMaskFct = new XORMasking(bitlength, delta);
-	delta.Create(numOTs, bitlength, crypt);
-
-
-	X1.Create(numOTs, bitlength);
-	X1.Reset();
-	X2.Create(numOTs, bitlength);
-	X2.Reset();
-
-	BYTE* b = new BYTE[16];
-	printf("b:    ");
-	for (int i = 0; i < 16; i++) {
-		b[i] = i;
-		printf("%02x", b[i]);
-	}
-	printf("\n");
-
-	BYTE* b2 = new BYTE[16];
-	printf("b2:   ");
-	for (int i = 0; i < 16; i++) {
-		b2[i] = 3 - i;
-		printf("%02x", b2[i]);
-	}
-	printf("\n");
-
-	for (int i = 0; i < numOTs; i++) {
-		//access and set the i-th element in the bitvectors
-		X1.SetBytes(b, 0, 16);
-		X2.SetBytes(b2, 0, 16);
-	}
-
-	printf("Printing X1:\t");
-	for (int i = 0; i < 16; i++) {
-		b[i] = X1.GetByte(i);
-		printf("%02x", b[i]);
-	}
-	printf("\n");
-
-	printf("Printing X2:\t");
-	for (int i = 0; i < 16; i++) {
-		b[i] = X2.GetByte(i);
-		printf("%02x", b[i]);
-	}
-	printf("\n");
-
-	cout << "Sender performing " << numOTs << " C_OT extensions on "
-			<< bitlength << " bit elements" << endl;
-
-	version = C_OT;
-	ObliviouslySend(X1, X2, numOTs, bitlength, version, crypt);
-
-	printf("Printing X1:\t");
-	for (int i = 0; i < 16; i++) {
-		b[i] = X1.GetByte(i);
-		printf("%02x", b[i]);
-	}
-	printf("\n");
-
-	printf("Printing X2:\t");
-	for (int i = 0; i < 16; i++) {
-		b[i] = X2.GetByte(i);
-		printf("%02x", b[i]);
-	}
-	printf("\n");
-
-	printf("Printing delta:\t");
-	for (int i = 0; i < 16; i++) {
-		b[i] = delta.GetByte(i);
-		printf("%02x", b[i]);
-	}
-	printf("\n");
-
-
-
-	delete crypt;
-
-//#define GARBLING
+#define GARBLING
 
 #ifndef GARBLING
 	server_close(connfd);
@@ -190,20 +104,114 @@ int main(int argc, char* argv[]) {
 
 #ifndef DEBUG
 	block R = randomBlock();
-	*((short *) (&R)) = 1;
+	*((short *) (&R)) |= 1;
 #else
 	block R = makeBlock((long )(-1), (long )(-1));
 #endif
+	uint8_t * rptr = (uint8_t*) &R;
+	for (int i = 0; i < 16; i++)
+		rptr[i] = 0xff;
+
+//	*((short *) (&R)) |= 1;
+	rptr[0] |= 1;
 
 	createInputLabels(inputLabels, R, n * c);
 	createInputLabels(initialDFFLable, R, p);
 
+	///--------------------------------------------------------------- OT Extension
+	//Parameters
+	int numOTs = c * e;
+	int bitlength = 128;
+	m_nSecParam = 128;
+	m_nNumOTThreads = 1;
+	BYTE version;
+	crypto *crypt = new crypto(m_nSecParam, (uint8_t*) m_vSeed);
+	InitOTSender(connfd, crypt);
+	CBitVector delta, X1, X2;
+
+	delta.Create(numOTs, bitlength, crypt);
+	m_fMaskFct = new XORMasking(bitlength, delta);
+	for (int i=0;i<numOTs;i++)
+		delta.SetBytes(rptr, i*16, 16);
+
+	printf("Delta: ");
+	for (int i = 0; i < 16; i++) {
+		printf("%02x", delta.GetByte(i));
+	}
+	printf("\n");
+
+	printf("R: ");
+	print__m128i(R);
+	printf("\n");
+
+
+
+	X1.Create(numOTs, bitlength);
+	X1.Reset();
+	X2.Create(numOTs, bitlength);
+	X2.Reset();
+	uint8_t* b = new BYTE[16];
+	BYTE* b2 = new BYTE[16];
+
+	cout << "Sender performing " << numOTs << " C_OT extensions on "
+			<< bitlength << " bit elements" << endl;
+
+	version = C_OT;
+	ObliviouslySend(X1, X2, numOTs, bitlength, version, crypt);
+
+
+
+	//putting X1 & X2 into inputLabels
+	printf("printing inputLabels after copy from X1 and X2:\n\n");
+	uint8_t *inputLabelsptr;
+	for (cid = 0; cid < c; cid++) {
+		for (j = 0; j < e; j++) {
+			inputLabelsptr = (uint8_t*) &inputLabels[2 * (cid * n + g + j)];
+			X1.GetBytes(inputLabelsptr, 16*(cid * e + j), 16);
+			print__m128i(inputLabels[2 * (cid * n + g + j)]);
+
+			inputLabelsptr = (uint8_t*) &inputLabels[2 * (cid * n + g + j) + 1];
+			X2.GetBytes(inputLabelsptr, 16*(cid * e + j), 16);
+			print__m128i(inputLabels[2 * (cid * n + g + j) + 1]);
+
+		}
+	}
+
+	//print
+	printf("Printing X1:\n");
+	for (int j = 0; j < numOTs; j++) {
+		for (int i = 0; i < 16; i++) {
+			b[i] = X1.GetByte(i + j * 16);
+			printf("%02x", b[i]);
+		}
+		printf("\n");
+	}
+	printf("\n\n");
+	printf("Printing X2:\n");
+	for (int j = 0; j < numOTs; j++) {
+		for (int i = 0; i < 16; i++) {
+			b[i] = X2.GetByte(i + j * 16);
+			printf("%02x", b[i]);
+		}
+		printf("\n");
+	}
+	printf("\n\n");
+	printf("Printing delta:\t");
+	for (int i = 0; i < 16; i++) {
+		b[i] = delta.GetByte(i);
+		printf("%02x", b[i]);
+	}
+	printf("\n");
+
+	delete crypt;
+//----------------------------------------------------end of OT Extension
+
 	for (cid = 0; cid < c; cid++) {
 		for (j = 0; j < g; j++) {
 			if (garbler_inputs[cid * g + j] == 0)
-			send_block(connfd, inputLabels[2 * (cid * n + j)]);
+				send_block(connfd, inputLabels[2 * (cid * n + j)]);
 			else
-			send_block(connfd, inputLabels[2 * (cid * n + j) + 1]);
+				send_block(connfd, inputLabels[2 * (cid * n + j) + 1]);
 
 			printf("i(%ld, %ld, %d)\n", cid, j, garbler_inputs[cid * g + j]);
 			print__m128i(inputLabels[2 * (cid * n + j)]);
@@ -212,24 +220,29 @@ int main(int argc, char* argv[]) {
 
 		//------------------------------------------------------------------------------------------ CHANGE 1
 		for (j = 0; j < e; j++) {
-			int ev_input;
-			read(connfd, &ev_input, sizeof(int));
-			if (!ev_input)
-			send_block(connfd, inputLabels[2 * (cid * n + g + j)]);
-			else
-			send_block(connfd, inputLabels[2 * (cid * n + g + j) + 1]);
+//			int ev_input;
+//			read(connfd, &ev_input, sizeof(int));
+//			if (!ev_input)
+//				send_block(connfd, inputLabels[2 * (cid * n + g + j)]);
+//			else
+//				send_block(connfd, inputLabels[2 * (cid * n + g + j) + 1]);
 
-			printf("i(%ld, %ld, %d)\n", cid, j, ev_input);
+			printf("evaluator : i(%ld, %ld, ?)\n", cid, j);
 			print__m128i(inputLabels[2 * (cid * n + g + j)]);
 			print__m128i(inputLabels[2 * (cid * n + g + j) + 1]);
+
 		}
+
+		printf("Compare to:   ");
+
+		printf("\n");
 		//----------------------------------------------------------------------end
 
 	}
 	printf("\n\n");
 
 	for (j = 0; j < p; j++) //p:#DFF
-	{
+			{
 		printf("garbledCircuit.I[j] = %d\n", garbledCircuit.I[j]);
 		if (garbledCircuit.I[j] == CONST_ZERO) // constant zero
 		{
@@ -246,13 +259,13 @@ int main(int argc, char* argv[]) {
 			print__m128i(inputLabels[2 * j + 1]);
 
 		} else if (garbledCircuit.I[j] < g) //belongs to Alice (garbler)
-		{
+				{
 			int index = garbledCircuit.I[j];
 
 			if (garbler_inputs[index] == 0)
-			send_block(connfd, initialDFFLable[2 * j]);
+				send_block(connfd, initialDFFLable[2 * j]);
 			else
-			send_block(connfd, initialDFFLable[2 * j + 1]);
+				send_block(connfd, initialDFFLable[2 * j + 1]);
 
 			printf("dffi(%ld, %ld, %d)\n", cid, j, garbler_inputs[index]);
 			print__m128i(initialDFFLable[2 * j]);
@@ -260,14 +273,14 @@ int main(int argc, char* argv[]) {
 
 		}
 		//------------------------------------------------------------------------------------------ CHANGE 2
-		else//**** belongs to Bob
+		else //**** belongs to Bob
 		{
 			int ev_input;
 			read(connfd, &ev_input, sizeof(int));
 			if (!ev_input)
-			send_block(connfd, initialDFFLable[2 * j]);
+				send_block(connfd, initialDFFLable[2 * j]);
 			else
-			send_block(connfd, initialDFFLable[2 * j + 1]);
+				send_block(connfd, initialDFFLable[2 * j + 1]);
 
 			printf("dffi(%ld, %ld, %d)\n", cid, j, ev_input);
 			print__m128i(initialDFFLable[2 * j]);
@@ -281,8 +294,16 @@ int main(int argc, char* argv[]) {
 	garbledCircuit.globalKey = randomBlock();
 	send_block(connfd, garbledCircuit.globalKey); // send DKC key
 
+	printf("R: ");
+	print__m128i(R);
+	printf("\n");
+
 	garble(&garbledCircuit, inputLabels, initialDFFLable, outputLabels, &R,
 			connfd);
+
+	printf("***************** InputLabels\n");
+	for (int i=0;i<n*c*2;i++)
+		print__m128i(inputLabels[i]);
 
 	for (cid = 0; cid < c; cid++) {
 		for (i = 0; i < m; i++) {

@@ -56,7 +56,6 @@ public:
 			}
 			printf("\n\n");
 
-			*(m_vDelta->GetArr()+15)=*(m_vDelta->GetArr()+15 )  |   0x01;
 
 			values[1].XORBits(m_vDelta->GetArr() + bytePos, bitPos, length);
 			snd_buf[1].XORBits(values[1].GetArr() + bytePos, 0, length);
@@ -76,7 +75,7 @@ public:
 					ceil_divide(processedOTs * m_nBitLength, 8));
 		}
 	}
-	;
+
 
 	//output already has to contain the masks
 	void UnMask(uint32_t progress, uint32_t processedOTs, CBitVector& choices,

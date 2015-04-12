@@ -45,10 +45,6 @@
 
 int main(int argc, char* argv[]) {
 
-	//Parameters
-	int numOTs = 1;
-	int bitlength = 128;
-	m_nSecParam = 128;
 	//-------------------------
 
 #ifndef DEBUG
@@ -71,83 +67,11 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 
-	m_nNumOTThreads = 1;
-	BYTE version;
-	crypto *crypt = new crypto(m_nSecParam, (uint8_t*) m_vSeed);
-	InitOTReceiver(sockfd, crypt);
-	CBitVector choices, response;
-	m_fMaskFct = new XORMasking(bitlength);
-	choices.Create(numOTs, 1);
-	response.Create(numOTs, bitlength);
-
-	choices.Set(0,0x1);
-
-
-	cout << "Receiver performing " << numOTs << " C_OT extensions on "
-			<< bitlength << " bit elements" << endl;
-	BYTE* b = new BYTE[16];
-	printf("b:    ");
-	for (int i = 0; i < 16; i++) {
-		b[i] = i;
-		printf("%02x", b[i]);
-	}
-	printf("\n");
-	BYTE* b2 = new BYTE[16];
-	printf("b2:   ");
-	for (int i = 0; i < 16; i++) {
-		b2[i] = 3 - i;
-		printf("%02x", b2[i]);
-	}
-	printf("\n");
-
 	CBitVector X1, X2;
 	X1.Create(1, 128);
 	X2.Create(1, 128);
 
-	for (int i = 0; i < numOTs; i++) {
-		//access and set the i-th element in the bitvectors
-		X1.SetBytes(b, 0, 16);
-		X2.SetBytes(b2, 0, 16);
-	}
-
-
-	version = C_OT;
-	ObliviouslyReceive(choices, response, numOTs, bitlength, version, crypt);
-
-
-
-
-	if (response.IsEqual(X1))
-		printf("CORRECT\n");
-	else
-		printf("WRONG ***\n");
-	delete crypt;
-
-
-
-	printf("Printing response:\t");
-
-	for (int i = 0; i < 16; i++) {
-		b[i] = response.GetByte(i);
-		printf("%02x", b[i]);
-	}
-	printf("\n");
-
-	printf("Printing X1:\t");
-	for (int i = 0; i < 16; i++) {
-		b[i] = X1.GetByte(i);
-		printf("%02x", b[i]);
-	}
-	printf("\n");
-
-	printf("Printing X2:\t");
-	for (int i = 0; i < 16; i++) {
-		b[i] = X2.GetByte(i);
-		printf("%02x", b[i]);
-	}
-	printf("\n");
-
-//#define GARBLING
+#define GARBLING
 
 #ifndef GARBLING
 	client_close(sockfd);
@@ -179,18 +103,91 @@ int main(int argc, char* argv[]) {
 	for (cid = 0; cid < c; cid++) {   //For each Clock Cycle
 		for (j = 0; j < e; j++) {      //For each input bit
 
-			evaluator_inputs[cid * e + j] = rand() % 2;//generate one random bit as evaluator's input bit
+			evaluator_inputs[cid * e + j] = rand() % 2; //generate one random bit as evaluator's input bit
 
 			printf("%d ", evaluator_inputs[cid * e + j]);
 		}
 	}
+	printf("\n");
+	//--------------------------------------- OT Extension
+	//Parameters
+	int numOTs = c*e;
+	int bitlength = 128;
+	m_nSecParam = 128;
+	m_nNumOTThreads = 1;
+	BYTE version;
+	crypto *crypt = new crypto(m_nSecParam, (uint8_t*) m_vSeed);
+	InitOTReceiver(sockfd, crypt);
+	CBitVector choices, response;
+	m_fMaskFct = new XORMasking(bitlength);
+	choices.Create(numOTs, 8);
+	response.Create(numOTs, bitlength);
+
+	cout << "Receiver performing " << numOTs << " C_OT extensions on "
+			<< bitlength << " bit elements" << endl;
+
+	//making choices
+	BYTE temp;
+	temp = 0x00;
+	for (int i = 0; i < e * c; i++) { //sweeping on each input of evaluator_inputs
+
+		if (evaluator_inputs[i]) { // 0 or 1
+			temp = temp | 0x80;
+		} else {
+			temp = temp & 0x7f;
+
+		}
+		temp = temp >> 1;
+
+		if (i % 8 == 7 || i == e * c - 1) { //put Byte into choices
+			if (i == e * c - 1) {
+				temp = temp >> 7 - (i % 8) -1;
+			}
+			choices.SetByte(floor(i / 8), temp);
+			temp = 0x00;
+		}
+
+	}
+	//------end of making choices
+
+	//do OT Ex
+	version = C_OT;
+	ObliviouslyReceive(choices, response, numOTs, bitlength, version, crypt);
+
+	//print ot result
+	printf("Choices:     \n");
+	for (int i = 0; i < 16; i++) {
+		printf("%02x", choices.GetByte(i));
+	}
+	printf("\n\n");
+	printf("Size: %d\n", choices.GetSize());
+	printf("Printing response:\n");
+	for (int j = 0; j < numOTs; j++) {
+		for (int i = 0; i < 16; i++) {
+			printf("%02x", response.GetByte(i + 16 * j));
+		}
+		printf("\n");
+	}
+	printf("\n\n");
+
+	//putting evaluator's input labels into "inputLabels"
+	uint8_t *inputLabelsptr;
+	for (cid = 0; cid < c; cid++) {
+		for (j = 0; j < e; j++) {
+			inputLabelsptr = (uint8_t*) &inputLabels[cid * n + g + j];
+			response.GetBytes(inputLabelsptr, 16*(cid * e + j), 16);
+		}
+	}
+
+	delete crypt;
+	//---------------------------------------end of OT Extension
 
 	printf("\n\n");
 
 	for (cid = 0; cid < c; cid++) {
 		for (j = 0; j < g; j++) {
 			recv_block(sockfd, &inputLabels[n * cid + j]);
-			printf("i(%ld,%ld,?)\n", cid, j);
+			printf("garbler i(%ld, %ld, ?)\n", cid, j);
 			print__m128i(inputLabels[n * cid + j]);
 		}
 
@@ -198,10 +195,10 @@ int main(int argc, char* argv[]) {
 		//-------------------------------------------------------------------------------------- CHANGE 1
 		for (j = 0; j < e; j++) {
 
-			write(sockfd, &evaluator_inputs[cid * e + j], sizeof(int));
-			recv_block(sockfd, &inputLabels[cid * n + g + j]);
+//			write(sockfd, &evaluator_inputs[cid * e + j], sizeof(int));
+//			recv_block(sockfd, &inputLabels[cid * n + g + j]);
 
-			printf("i(%ld,%ld,%d)\n", cid, j + g,
+			printf("evaluator i(%ld, %ld, %d)\n", cid, j + g,
 					evaluator_inputs[cid * e + j]);
 			print__m128i(inputLabels[cid * n + g + j]);
 		}
@@ -214,19 +211,19 @@ int main(int argc, char* argv[]) {
 		printf("garbledCircuit.I[j] = %d\n", garbledCircuit.I[j]);
 
 		if (garbledCircuit.I[j] < g) // initial value is constant or belongs to Alice (garbler)
-		{
+				{
 			recv_block(sockfd, &initialDFFLable[j]);
 			if (garbledCircuit.I[j] == CONST_ZERO)
-			printf("dffi(%ld,%ld,0)\n", cid, j);
+				printf("dffi(%ld,%ld,0)\n", cid, j);
 			else if (garbledCircuit.I[j] == CONST_ONE)
-			printf("dffi(%ld,%ld,1)\n", cid, j);
+				printf("dffi(%ld,%ld,1)\n", cid, j);
 			else
-			printf("dffi(%ld,%ld,?)\n", cid, j);
+				printf("dffi(%ld,%ld,?)\n", cid, j);
 			print__m128i(initialDFFLable[j]);
 		} else {
 			assert(
 					(garbledCircuit.I[j] - g > 0)
-					&& (garbledCircuit.I[j] - g < e));
+							&& (garbledCircuit.I[j] - g < e));
 
 			//------------------------------------------------------------------------ CHANGE 2
 			write(sockfd, &evaluator_inputs[garbledCircuit.I[j] - g],
