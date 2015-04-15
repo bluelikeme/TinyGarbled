@@ -2,7 +2,28 @@ TinyGarble
 =======
 **Caution: Under Construction!**
 
-TinyGarble consists of two main parts: netlist generation (/genNetlist) and two party secure function evalauation (SFE). Netlist generation is partially describe in TinyGarble paper in IEEE S&P'15. It is based on upon hardware synthesis and sequential circuits. The other part of TinyGarble, two party SFE, is implemented based on [JustGarble](http://cseweb.ucsd.edu/groups/justgarble/) developed in UCSD. Beside Free-XOR, Row-reduction, and Fixed-key block cipher, TinyGarble SFE includes Half Gates which is the most recent optimization in garbled circuit (GC) protocol.
+TinyGarble project consists of two main parts: netlist generation (/genNetlist) and two-party secure function evaluation (SFE). Netlist generation is partially describe in TinyGarble paper in IEEE S&P'15 (see References). It is based on upon hardware synthesis and sequential circuits. The other part of TinyGarble, hereafter called "TinyGarble", is implemented based on [JustGarble](http://cseweb.ucsd.edu/groups/justgarble/) project developed in UCSD. Beside Free-XOR, Row-reduction, OT extension, and Fixed-key block cipher, TinyGarble includes Half Gates which is the most recent optimization in garbled circuit (GC) protocol and reduces the communication 33%.
+
+## Compile TinyGarble 
+TinyGarble uses [OTExtention](https://github.com/encryptogroup/OTExtension) project for Oblivious Transfer (OT).
+
+### Requirements
+1. g++, for Ubuntu run:
+	sudo apt-get install g++
+
+2. OpenSSL, for Ubuntu run: 
+	sudo apt-get install libssl-dev
+
+3. Compile Miracl in OTExtention/util/Miracl either using "bash linux" or "bash linux64" (see `util/Miracl/first.txt` for more information).
+
+4. Compile OTExtension by executing make in OTExtention/ directory.
+
+5. Compile TinyGarble by executing make in the main directory.
+
+###Test
+	$ debug/Alice.out readNetlist/netlists/test.scd 1515&
+	$ debug/Bob.out readNetlist/netlists/test.scd 127.0.0.1 1516
+
 
 ## Netlist Generation 
 Netlist generation requires Synopsys Design Compiler or Yosys-ABC synthesis tools.
@@ -74,25 +95,13 @@ Here is how to compile a verilog file named "benchmark.v" using the custom libra
 	
 [Note: commands starting with "yosys>" should be called inside design_vision. Please ignore "yosys>" for them.]
 
-##Two Party SFE
-
-For using TinyGarble, the dependency should be installed and TinyGarble need to be compiled.
-
-- Dependencies
-
-- Compile TinyGarble
-
-Go to the root directory of TinyGarble and make it:
-
-	$ make
-
-And test it:
-
-	$ debug/Alice.out readNetlist/netlists/test.scd 1515&
-	$ debug/Bob.out readNetlist/netlists/test.scd 127.0.0.1 1516
+##References
+- Ebrahim M. Songhori, Siam U. Hussain, Ahmad-Reza Sadeghi, Thomas Schneider and Farinaz Koushanfar, ["TinyGarble: Highly Compressed and Scalable Sequential Garbled Circuits."](http://esonghori.github.io/file/TinyGarble.pdf) <i>Security and Privacy, 2015 IEEE Symposium on</i> May, 2015.
+- Mihir Bellare, Viet Tung Hoang, Sriram Keelveedhi, and Phillip Rogaway. Efficient garbling from a fixed-key blockcipher. In <i>S&P</i>, pages 478–492. IEEE, 2013.
+- Samee Zahur, Mike Rosulek, and David Evans. ["Two halves make a whole: Reducing data transfer in garbled circuits using half gates."](http://eprint.iacr.org/2014/756) In <i>Eurocrypt, 2015</i>.
+- G. Asharov, Y. Lindell, T. Schneider and M. Zohner: More Efficient Oblivious Transfer and Extensions for Faster Secure Computation In <i>CCS'13</i>.
 
 
 ##TODOs
-- Upgrade README.md.
+- Update README.md.
 - Add synthesis library.
-- Add OT.
