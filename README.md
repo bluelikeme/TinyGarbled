@@ -1,4 +1,4 @@
-Garbled
+TinyGarble
 =======
 **Caution: Under Construction!**
 
