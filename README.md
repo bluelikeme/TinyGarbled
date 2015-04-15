@@ -9,16 +9,18 @@ TinyGarble uses [OTExtention](https://github.com/encryptogroup/OTExtension) proj
 
 ### Requirements
 1. g++, for Ubuntu run:
-	sudo apt-get install g++
+	
+	$ sudo apt-get install g++
 
 2. OpenSSL, for Ubuntu run: 
-	sudo apt-get install libssl-dev
+	
+	$ sudo apt-get install libssl-dev
 
-3. Compile Miracl in OTExtention/util/Miracl either using "bash linux" or "bash linux64" (see `util/Miracl/first.txt` for more information).
+3. Compile Miracl in OTExtention/util/Miracl either using `bash linux` or `bash linux64` (see `util/Miracl/first.txt` for more information).
 
-4. Compile OTExtension by executing make in OTExtention/ directory.
+4. Compile OTExtension by executing `make` in `OTExtention/` directory.
 
-5. Compile TinyGarble by executing make in the main directory.
+5. Compile TinyGarble by executing `make` in the main directory.
 
 ###Test
 	$ debug/Alice.out readNetlist/netlists/test.scd 1515&
