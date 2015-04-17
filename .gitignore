@@ -27,3 +27,5 @@ transcript
 *.wlf
 syn/
 syn/*
+syn_yos/
+syn_yos/*
