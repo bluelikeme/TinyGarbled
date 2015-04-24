@@ -162,6 +162,7 @@ long garble(GarbledCircuit *garbledCircuit, block* inputLabels,
 			tweak0 = makeBlock(cid, 2 * i + 0);
 			tweak1 = makeBlock(cid, 2 * i + 1);
 
+			// probably we should use 2A and 4B instead of A and B
 			keys[0] = xorBlocks(A0, tweak0);
 			keys[1] = xorBlocks(A1, tweak0);
 			keys[2] = xorBlocks(B0, tweak1);

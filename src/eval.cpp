@@ -125,7 +125,8 @@ long evaluate(GarbledCircuit *garbledCircuit, block* inputLables, block* initial
 					printf("t(%ld)\t", j);
 					print__m128i(table[j]);
 				}
-
+				
+				// probably we should use 2A and 4B instead of A and B
 				keys[0] = xorBlocks(A, tweak0);
 				keys[1] = xorBlocks(B, tweak1);
 

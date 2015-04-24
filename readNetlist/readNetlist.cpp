@@ -110,4 +110,6 @@ int main(int argc, char** argv) {
 	string outfilename(argv[2]);
 	int c = atoi(argv[3]);
 	verilog2SCD(infilename, outfilename, c);
+
+	return 0;
 }

@@ -121,7 +121,7 @@ public:
 const string typetoStrGate(short itype);
 
 void parse_netlist(const string &filename, ReadCircuitString &readCircuitString);
-void id_assignment(const ReadCircuitString readCircuitString, ReadCircuit &readCircuit);
+void id_assignment(const ReadCircuitString &readCircuitString, ReadCircuit &readCircuit);
 void topological_sort(ReadCircuit &readCircuit);
 
 void top_sort(const vector<ReadGate>& G, int no_task, int  *index);
